@@ -58,6 +58,10 @@ public class UsersRecyclerAdapter extends RecyclerView.Adapter<RecyclerView.View
         this.users.addAll(users);
     }
 
+    public void clearUsers(){
+        users.clear();
+    }
+
     RequestManager requestManager;
 
     public void addRequestManager(RequestManager requestManager) {

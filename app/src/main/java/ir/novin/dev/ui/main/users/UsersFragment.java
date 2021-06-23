@@ -1,7 +1,6 @@
 package ir.novin.dev.ui.main.users;
 
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,12 +12,9 @@ import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-
-import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
-
-import java.util.List;
 
 import javax.inject.Inject;
 
@@ -26,10 +22,9 @@ import dagger.android.support.DaggerFragment;
 import ir.novin.dev.R;
 import ir.novin.dev.modules.Users;
 import ir.novin.dev.util.Resource;
-import ir.novin.dev.util.VerticalSpacingItemDecoration;
 import ir.novin.dev.viewmodels.ViewModelProviderFactory;
 
-public class UsersFragment extends DaggerFragment {
+public class UsersFragment extends DaggerFragment implements SwipeRefreshLayout.OnRefreshListener {
 
     private static final String TAG = "UserFragment";
 
@@ -47,22 +42,28 @@ public class UsersFragment extends DaggerFragment {
 
     ProgressBar progressBar;
 
+    SwipeRefreshLayout swipLayout;
+
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_users,container,false);
+        return inflater.inflate(R.layout.fragment_users, container, false);
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 
-        recyclerView=view.findViewById(R.id.recycler_view);
+        recyclerView = view.findViewById(R.id.recycler_view);
         progressBar = view.findViewById(R.id.progress_bar);
+
+        swipLayout = view.findViewById(R.id.swipe_layout);
 
         initRecyclerView();
 
-        viewModel= ViewModelProviders.of(this,providerFactory).get(UsersViewModel.class);
+        swipLayout.setOnRefreshListener(this);
+
+        viewModel = ViewModelProviders.of(this, providerFactory).get(UsersViewModel.class);
 
         subscribeObserver(1);
 
@@ -70,7 +71,7 @@ public class UsersFragment extends DaggerFragment {
         adapter.addRequestManager(requestManager);
     }
 
-    private void subscribeObserver(int page){
+    private void subscribeObserver(int page) {
 
         progressBar.setVisibility(View.VISIBLE);
 
@@ -78,30 +79,29 @@ public class UsersFragment extends DaggerFragment {
         viewModel.observerUsers(page).observe(getViewLifecycleOwner(), new Observer<Resource<Users>>() {
             @Override
             public void onChanged(Resource<Users> listResource) {
-                if(listResource != null){
+                if (listResource != null) {
 
 
+                    switch (listResource.status) {
 
 
-
-                    switch (listResource.status){
-
-
-                        case SUCCESS:{
-                            loading=true;
+                        case SUCCESS: {
+                            loading = true;
                             progressBar.setVisibility(View.GONE);
-                            adapter.setUsers(((Users)listResource.data).data);
+                            adapter.setUsers(((Users) listResource.data).data);
                             recyclerView.post(new Runnable() {
                                 public void run() {
                                     adapter.notifyDataSetChanged();
                                 }
                             });
+                            swipLayout.setRefreshing(false);
                             break;
                         }
 
-                        case ERROR:{
-                            loading=true;
+                        case ERROR: {
+                            loading = true;
                             progressBar.setVisibility(View.GONE);
+                            swipLayout.setRefreshing(false);
                             break;
                         }
                     }
@@ -114,7 +114,7 @@ public class UsersFragment extends DaggerFragment {
     private boolean loading = true;
     private int count = 1;
 
-    private void initRecyclerView(){
+    private void initRecyclerView() {
 
         final LinearLayoutManager aLinearLayoutManager = new LinearLayoutManager(getActivity());
         recyclerView.setLayoutManager(aLinearLayoutManager);
@@ -152,6 +152,21 @@ public class UsersFragment extends DaggerFragment {
 
             }
         });
+
+
+    }
+
+    @Override
+    public void onRefresh() {
+        adapter.clearUsers();
+        recyclerView.post(new Runnable() {
+            public void run() {
+                adapter.notifyDataSetChanged();
+            }
+        });
+        loading = true;
+        count = 1;
+        subscribeObserver(count);
     }
 
 }
